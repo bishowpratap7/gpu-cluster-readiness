@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPU Cluster Readiness — a visual tutorial</title>
+<style>
+  :root{--bg:#0b0f0c;--panel:#12180f;--panel2:#0f140d;--ink:#e8f0e4;--dim:#9db894;--green:#76b900;--green2:#a4e635;--red:#f87171;--amber:#fbbf24;--line:#243018}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:Georgia,'Times New Roman',serif;line-height:1.65}
+  .wrap{max-width:880px;margin:0 auto;padding:0 22px}
+  header{padding:64px 0 30px;text-align:center}
+  .kicker{font-family:ui-monospace,Menlo,monospace;font-size:12px;letter-spacing:3px;color:var(--green2);text-transform:uppercase}
+  h1{font-size:clamp(32px,6vw,52px);line-height:1.12;margin:16px 0 14px;font-weight:700}
+  h1 em{color:var(--green2);font-style:normal}
+  .sub{color:var(--dim);font-size:19px;max-width:620px;margin:0 auto}
+  section{padding:44px 0;border-top:1px solid var(--line)}
+  h2{font-size:29px;margin-bottom:10px}
+  h2 .no{font-family:ui-monospace,Menlo,monospace;color:var(--green);font-size:19px;margin-right:10px}
+  p{margin:10px 0;color:#d7e4cf}
+  .dim{color:var(--dim)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin:18px 0}
+  .fig{display:flex;justify-content:center;padding:8px 0}
+  code,pre{font-family:ui-monospace,Menlo,Consolas,monospace}
+  .term{background:#050705;border:1px solid var(--line);border-radius:12px;padding:18px 20px;font-size:14.5px;line-height:1.9;min-height:250px;white-space:pre-wrap;color:#c9e7b8}
+  .term .p{color:var(--green2)} .term .f{color:var(--red)} .term .s{color:var(--amber)} .term .c{color:#7d9174}
+  .bars{margin:14px 0}
+  .bar-row{display:flex;align-items:center;gap:12px;margin:10px 0;font-family:ui-monospace,Menlo,monospace;font-size:13.5px}
+  .bar-lab{width:130px;color:var(--dim);text-align:right}
+  .bar-track{flex:1;background:#1a2413;border-radius:8px;height:26px;overflow:hidden}
+  .bar-fill{height:100%;width:0;border-radius:8px;background:linear-gradient(90deg,var(--green),var(--green2));transition:width 1.4s cubic-bezier(.2,.8,.2,1)}
+  .bar-fill.zero{background:linear-gradient(90deg,#7f1d1d,var(--red))}
+  .bar-val{width:88px;color:var(--ink)}
+  .checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:16px}
+  .check{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .check h3{font-size:18px;margin-bottom:6px}
+  .check .tag{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:2px;color:var(--green2);text-transform:uppercase}
+  .check p{font-size:15px;color:var(--dim)}
+  .big-num{font-family:ui-monospace,Menlo,monospace;font-size:42px;color:var(--green2)}
+  .report{position:relative;background:#f4f7ee;color:#17210f;border-radius:12px;padding:24px 26px;font-family:ui-monospace,Menlo,monospace;font-size:14.5px;line-height:2}
+  .report b{color:#0c1406}
+  .stamp{position:absolute;right:22px;top:20px;border:4px solid var(--green);color:#4d7c0f;font-weight:700;font-size:21px;letter-spacing:2px;padding:6px 14px;border-radius:8px;transform:rotate(10deg) scale(2.4);opacity:0;font-family:ui-monospace,Menlo,monospace}
+  .on .stamp{animation:stamp .5s .9s cubic-bezier(.2,2.2,.4,1) forwards}
+  @keyframes stamp{to{transform:rotate(-9deg) scale(1);opacity:.92}}
+  .chip{fill:#1d2a12;stroke:#3f6212;stroke-width:1.5;transition:fill .4s}
+  .lit .chip{fill:var(--green)}
+  .nodebox{fill:#10160c;stroke:#334d17;stroke-width:1.5}
+  .nodelab{fill:#c9e7b8;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+  .plug{fill:#3f6212}
+  .broken .plug{fill:var(--red);animation:blink 1s infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .pulse{fill:none;stroke:var(--green2);stroke-width:2.5;stroke-dasharray:14 10;animation:dash 1.6s linear infinite}
+  @keyframes dash{to{stroke-dashoffset:-48}}
+  .fadeup{opacity:0;transform:translateY(16px);transition:opacity .7s,transform .7s}
+  .on.fadeup,.fadeup.on{opacity:1;transform:none}
+  .cta{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;text-align:center}
+  .cmd{display:inline-block;background:#050705;border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:6px 4px;font-size:14px;color:#c9e7b8}
+  footer{padding:34px 0 54px;color:var(--dim);font-size:14.5px;text-align:center;border-top:1px solid var(--line)}
+  a{color:var(--green2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">A visual tutorial · gpu-cluster-readiness</div>
+  <h1>Your cluster has 512 GPUs.<br><em>Can it run anything?</em></h1>
+  <p class="sub">Buying GPUs is the easy part. Proving a cluster is ready to run real work, that is a skill. This tutorial teaches it, one picture at a time.</p>
+</header>
+
+<div class="fig" aria-label="Animated diagram of three GPU nodes">
+  <svg width="640" height="240" viewBox="0 0 640 240" role="img">
+    <!-- Node 1 -->
+    <g class="node" data-node>
+      <rect class="nodebox" x="20" y="30" width="180" height="180" rx="12"/>
+      <text class="nodelab" x="40" y="58">node-01 · healthy</text>
+      <rect class="chip" x="40" y="76" width="34" height="34" rx="6"/><rect class="chip" x="84" y="76" width="34" height="34" rx="6"/>
+      <rect class="chip" x="128" y="76" width="34" height="34" rx="6"/><rect class="chip" x="40" y="120" width="34" height="34" rx="6"/>
+      <rect class="chip" x="84" y="120" width="34" height="34" rx="6"/><rect class="chip" x="128" y="120" width="34" height="34" rx="6"/>
+      <circle class="plug" cx="52" cy="186" r="7"/><text class="nodelab" x="68" y="191">device plugin up</text>
+    </g>
+    <!-- Node 2 -->
+    <g class="node" data-node>
+      <rect class="nodebox" x="230" y="30" width="180" height="180" rx="12"/>
+      <text class="nodelab" x="250" y="58">node-02 · healthy</text>
+      <rect class="chip" x="250" y="76" width="34" height="34" rx="6"/><rect class="chip" x="294" y="76" width="34" height="34" rx="6"/>
+      <rect class="chip" x="338" y="76" width="34" height="34" rx="6"/><rect class="chip" x="250" y="120" width="34" height="34" rx="6"/>
+      <rect class="chip" x="294" y="120" width="34" height="34" rx="6"/><rect class="chip" x="338" y="120" width="34" height="34" rx="6"/>
+      <circle class="plug" cx="262" cy="186" r="7"/><text class="nodelab" x="278" y="191">device plugin up</text>
+    </g>
+    <!-- Node 3 -->
+    <g class="node broken" data-node>
+      <rect class="nodebox" x="440" y="30" width="180" height="180" rx="12"/>
+      <text class="nodelab" x="460" y="58">node-03 · claims 8 GPUs</text>
+      <rect class="chip" x="460" y="76" width="34" height="34" rx="6"/><rect class="chip" x="504" y="76" width="34" height="34" rx="6"/>
+      <rect class="chip" x="548" y="76" width="34" height="34" rx="6"/><rect class="chip" x="460" y="120" width="34" height="34" rx="6"/>
+      <rect class="chip" x="504" y="120" width="34" height="34" rx="6"/><rect class="chip" x="548" y="120" width="34" height="34" rx="6"/>
+      <circle class="plug" cx="472" cy="186" r="7"/><text class="nodelab" x="488" y="191" style="fill:#f87171">plugin DOWN</text>
+    </g>
+  </svg>
+</div>
+<p style="text-align:center" class="dim">Watch the nodes light up. Two are ready. The third one <b style="color:#f87171">looks</b> identical, and it can run nothing. Telling them apart is the whole job.</p>
+
+<section class="fadeup">
+  <h2><span class="no">01</span>The one idea: capacity is not readiness</h2>
+  <p>Every Kubernetes node reports two numbers for its GPUs. <b>Capacity</b> is what the hardware claims. <b>Allocatable</b> is what the scheduler can actually hand to a workload. The gap between them is where clusters lie.</p>
+  <div class="card bars" data-bars>
+    <div class="bar-row"><div class="bar-lab">node-03 capacity</div><div class="bar-track"><div class="bar-fill" data-w="100%"></div></div><div class="bar-val">8 GPUs</div></div>
+    <div class="bar-row"><div class="bar-lab">node-03 allocatable</div><div class="bar-track"><div class="bar-fill zero" data-w="3%"></div></div><div class="bar-val">0 GPUs</div></div>
+    <div class="bar-row"><div class="bar-lab">after plugin fix</div><div class="bar-track"><div class="bar-fill" data-w="100%"></div></div><div class="bar-val">8 GPUs</div></div>
+  </div>
+  <p>The device plugin is the small DaemonSet that advertises GPUs to Kubernetes. When it dies, the hardware still reports its capacity, but allocatable drops to zero and every GPU workload pends forever. <b>A node reporting 8 GPUs with no working plugin is not ready.</b> That single judgment is the seed of the entire readiness discipline.</p>
+</section>
+
+<section class="fadeup">
+  <h2><span class="no">02</span>The five checks</h2>
+  <p>A readiness tool is just this judgment, made systematic. Each check answers one question and, this matters, produces <b>evidence</b>, not a vibe.</p>
+  <div class="checks">
+    <div class="check"><div class="tag">Check 1</div><h3>Node inventory</h3><p>What does every node claim, and what can it actually give? Capacity vs allocatable, per node and totalled.</p></div>
+    <div class="check"><div class="tag">Check 2</div><h3>Plugin + Operator health</h3><p>Is the GPU Operator's device plugin running on every GPU node? This is the check that catches node-03.</p></div>
+    <div class="check"><div class="tag">Check 3</div><h3>Driver / CUDA sanity</h3><p>Is a driver present, and is the version consistent across the fleet? Skew here means mysterious failures later.</p></div>
+    <div class="check"><div class="tag">Check 4</div><h3>vLLM smoke benchmark</h3><p>Serve a real model and measure it. <span class="big-num" data-count="1840">0</span> <span class="dim">tokens/sec, recorded, is proof. "It deployed" is not.</span></p></div>
+    <div class="check"><div class="tag">Check 5</div><h3>NCCL smoke test</h3><p>Can the GPUs talk to each other? Training lives or dies on this. No GPUs present? The check skips, cleanly, and says why.</p>
+      <div class="fig"><svg width="120" height="120" viewBox="0 0 120 120"><circle class="pulse" cx="60" cy="60" r="40"/><circle cx="60" cy="20" r="9" fill="#76b900"/><circle cx="100" cy="60" r="9" fill="#76b900"/><circle cx="60" cy="100" r="9" fill="#76b900"/><circle cx="20" cy="60" r="9" fill="#76b900"/></svg></div>
+    </div>
+    <div class="check"><div class="tag">The product</div><h3>The report</h3><p>Every verdict, with the evidence behind it, in JSON + Markdown. The report is what a team signs. The report is the product.</p></div>
+  </div>
+</section>
+
+<section class="fadeup">
+  <h2><span class="no">03</span>Watch it run</h2>
+  <p>This is what the tool's output looks like on a three-node cluster with one sick node:</p>
+  <div class="term" id="term"></div>
+  <p class="dim">Notice the shape: one line per check, a verdict, and the number that backs it. FAIL is a useful answer. So is SKIP. The only useless answer is a guess.</p>
+</section>
+
+<section class="fadeup">
+  <h2><span class="no">04</span>The certification report</h2>
+  <p>When every check has run, the tool writes the artifact a platform team can sign off on:</p>
+  <div class="report" data-report>
+    <div class="stamp">CERTIFIED</div>
+    <b>Cluster Readiness Report</b> · prod-gpu-01<br>
+    node-inventory ....... <b>PASS</b> · 24 GPUs, 24 allocatable<br>
+    device-plugin ........ <b>PASS</b> · 3/3 nodes advertising<br>
+    driver-cuda .......... <b>PASS</b> · 550.54.15, no skew<br>
+    vllm-smoke ........... <b>PASS</b> · 1,840 tok/s generation<br>
+    nccl-smoke ........... <b>PASS</b> · all-reduce 41 GB/s<br>
+    Verdict: <b>PRODUCTION READY</b>
+  </div>
+  <p class="dim">A cluster that fails gets the same report, with the failing check named and its evidence attached. That honesty is what makes the certificate worth anything.</p>
+</section>
+
+<section class="fadeup">
+  <h2><span class="no">05</span>Try it yourself</h2>
+  <div class="cta">
+    <p style="margin-bottom:12px">The tool is open source and built in the open, one check at a time.</p>
+    <span class="cmd">git clone https://github.com/bishowpratap7/gpu-cluster-readiness</span><br>
+    <span class="cmd">go run ./cmd/readiness</span>
+    <p class="dim" style="margin-top:14px">No GPU? Perfect first test. On a GPU-less cluster the correct inventory answer is <b>zero</b>, reported honestly. A tool that invents GPUs fails the only test that matters. Zeros are a pass.</p>
+  </div>
+</section>
+
+<footer>
+  Tutorial + tool by <b>Bishow Pandey</b>, Senior Platform Engineer, built as the flagship of a 30-day NVIDIA prep (DSX cluster-readiness lane).<br>
+  Part of the <a href="https://github.com/bishowpratap7/ai-engineer-journey">AI Engineer Journey</a> · <a href="https://github.com/bishowpratap7/gpu-cluster-readiness">The repo</a>
+</footer>
+
+</div>
+<script>
+  // Light up healthy nodes one by one
+  document.querySelectorAll('[data-node]').forEach(function(n,i){
+    if(n.classList.contains('broken')) return;
+    setTimeout(function(){ n.classList.add('lit'); }, 500 + i*650);
+  });
+  // Scroll-triggered animations
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting) return;
+      e.target.classList.add('on');
+      e.target.querySelectorAll('.bar-fill').forEach(function(b){ b.style.width = b.dataset.w; });
+      var c = e.target.querySelector('[data-count]');
+      if(c){ var t=+c.dataset.count, s=performance.now();
+        (function tick(now){ var p=Math.min((now-s)/1500,1); c.textContent = Math.round(t*p).toLocaleString(); if(p<1) requestAnimationFrame(tick); })(s); }
+      if(e.target.querySelector('#term') || e.target.id==='term') runTerm();
+      io.unobserve(e.target);
+    });
+  },{threshold:.3});
+  document.querySelectorAll('.fadeup,[data-bars],[data-report]').forEach(function(el){ io.observe(el); });
+  // Terminal simulation
+  var lines = [
+    ['$ gpu-readiness check --cluster prod-gpu-01','c'],
+    ['[1/5] node-inventory ... 24 GPUs capacity, 16 allocatable','p'],
+    ['      node-03: capacity 8, allocatable 0  <-- GAP','f'],
+    ['[2/5] device-plugin .... FAIL · plugin pod missing on node-03','f'],
+    ['[3/5] driver-cuda ...... PASS · 550.54.15 everywhere','p'],
+    ['[4/5] vllm-smoke ....... SKIP · no schedulable GPU on node-03 path','s'],
+    ['[5/5] nccl-smoke ....... SKIP · depends on check 2','s'],
+    ['Verdict: NOT READY · 1 failing check · report written to report.md','c']
+  ];
+  var termDone=false;
+  function runTerm(){
+    if(termDone) return; termDone=true;
+    var el=document.getElementById('term'), i=0;
+    (function next(){
+      if(i>=lines.length) return;
+      var d=document.createElement('div'); d.className=lines[i][1]; d.textContent=lines[i][0];
+      el.appendChild(d); i++; setTimeout(next, 620);
+    })();
+  }
+  io.observe(document.getElementById('term'));
+</script>
+</body>
+</html>
